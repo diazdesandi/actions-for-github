@@ -31,7 +31,7 @@
   },
   "source": {
     "repository": "https://github.com/diazdesandi/actions-for-github",
-    "commit": "",
+    "commit": "5745d0a49bca9105ddb02e90889ac62169a8817d",
     "license": "AGPL-3.0-or-later"
   },
   "keywords": [
