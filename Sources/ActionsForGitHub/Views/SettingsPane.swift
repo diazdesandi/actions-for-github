@@ -55,8 +55,7 @@ struct ActionsSettingsPane: View {
                 VStack(alignment: .leading, spacing: DroppySpacing.sm) {
                     HStack(spacing: DroppySpacing.sm) {
                         SecureField(tokenPlaceholder, text: $tokenField)
-                            .textFieldStyle(.roundedBorder)
-                            .controlSize(.small)
+                            .droppyFieldStyle()
                             .onSubmit { save() }
 
                         Button(tokenField.isEmpty ? "Check" : "Save") { save() }
@@ -108,7 +107,7 @@ struct ActionsSettingsPane: View {
     }
 
     private var tokenPlaceholder: String {
-        monitor.hasStoredToken ? "Saved — paste a new token to replace it" : "github_pat_… or ghp_…"
+        monitor.hasStoredToken ? "Saved. Paste a new token to replace it." : "github_pat_… or ghp_…"
     }
 
     private var tokenGlyph: String {
@@ -169,8 +168,7 @@ struct ActionsSettingsPane: View {
                 VStack(alignment: .leading, spacing: DroppySpacing.sm) {
                     HStack(spacing: DroppySpacing.sm) {
                         TextField("owner/name", text: $repoField)
-                            .textFieldStyle(.roundedBorder)
-                            .controlSize(.small)
+                            .droppyFieldStyle()
                             .onSubmit { addRepo() }
 
                         Button("Add") { addRepo() }
@@ -236,7 +234,7 @@ struct ActionsSettingsPane: View {
             } label: {
                 Image(systemName: "arrow.up.forward")
             }
-            .buttonStyle(DroppyCircleButtonStyle(size: 22))
+            .buttonStyle(DroppyCircleButtonStyle(size: DroppySettingsControlMetrics.compactTrailingControlHeight))
             .help("Open on GitHub")
             .accessibilityLabel("Open \(snapshot.ref.id) on GitHub")
 
@@ -245,7 +243,12 @@ struct ActionsSettingsPane: View {
             } label: {
                 Image(systemName: "minus")
             }
-            .buttonStyle(DroppyCircleButtonStyle(size: 22, destructive: true, solidFill: nil, foregroundColorOverride: nil))
+            .buttonStyle(DroppyCircleButtonStyle(
+                size: DroppySettingsControlMetrics.compactTrailingControlHeight,
+                destructive: true,
+                solidFill: nil,
+                foregroundColorOverride: nil
+            ))
             .help("Stop watching")
             .accessibilityLabel("Stop watching \(snapshot.ref.id)")
         }
@@ -354,5 +357,28 @@ struct ActionsSettingsPane: View {
                 )
             )
         }
+    }
+}
+
+// MARK: - Text fields
+
+private extension View {
+    /// The house treatment for a text field in a settings card.
+    ///
+    /// There is no text field in the settings kit, so this is the shape the
+    /// kit's own click-to-type pill uses: a plain field on a fill, no bezel.
+    /// `.roundedBorder` is AppKit's bevel, and an outline beside Droppy's
+    /// fill-separated surfaces is the one control on the page that came from
+    /// somewhere else. The height is the settings row metric, the same one
+    /// every pill and button in a row stands at.
+    func droppyFieldStyle() -> some View {
+        textFieldStyle(.plain)
+            .font(.system(size: 12))
+            .padding(.horizontal, DroppySpacing.sm)
+            .frame(height: DroppySettingsControlMetrics.compactTrailingControlHeight)
+            .background(
+                RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous)
+                    .fill(AdaptiveColors.overlayAuto(0.08))
+            )
     }
 }

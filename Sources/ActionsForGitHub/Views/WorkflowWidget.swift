@@ -10,9 +10,9 @@
 //  Solo and paired are two compositions, not one view at two widths. Solo has
 //  room for a row per repository with its recent history beside it; paired has
 //  room for the state of the whole list and the names behind it. Both follow
-//  the layout every Droppy widget shares: no card, no border, one 14pt padding
-//  on every edge, the root filling the rectangle, a header row, leading text
-//  and trailing numbers.
+//  the layout every Droppy widget shares: no card, no border, one padding and
+//  the host gives the number, the root filling the rectangle, a header row,
+//  leading text and trailing numbers.
 //
 
 import DroppyKit
@@ -45,7 +45,11 @@ struct WorkflowWidget: View {
 
             Spacer(minLength: 0)
         }
-        .padding(DroppySpacing.mdl)
+        // One padding, and the host supplies the number. Zero under a notch,
+        // where the shelf's chrome has already inset the rectangle, so a
+        // widget that pads again sits lower and narrower than the built-in
+        // beside it. Only the Dynamic Island has an inset, for its arc.
+        .padding(context.contentInsets)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 

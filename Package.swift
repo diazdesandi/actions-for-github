@@ -12,20 +12,21 @@ let package = Package(
         .library(name: "ActionsForGitHub", type: .dynamic, targets: ["ActionsForGitHub"])
     ],
     dependencies: [
-        // Local SDK checkout. Swap for the tagged URL before publishing:
-        //     .package(url: "https://gitlab.com/droppyformac1/droppykit.git", from: "1.5.0")
-        .package(path: "../droppykit")
+        // The published SDK, by tag. A path dependency builds against whatever
+        // happens to be in the checkout beside this one, which is not what the
+        // reviewer, the Store or anybody else cloning this repository gets.
+        .package(url: "https://gitlab.com/droppyformac1/droppykit.git", from: "1.6.0")
     ],
     targets: [
         .target(
             name: "ActionsForGitHub",
-            dependencies: [.product(name: "DroppyKit", package: "DroppyKit")]
+            dependencies: [.product(name: "DroppyKit", package: "droppykit")]
         ),
         .executableTarget(
             name: "ActionsForGitHubHarness",
             dependencies: [
                 "ActionsForGitHub",
-                .product(name: "DroppyKitHarness", package: "DroppyKit")
+                .product(name: "DroppyKitHarness", package: "droppykit")
             ]
         )
     ]
