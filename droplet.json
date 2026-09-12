@@ -1,0 +1,45 @@
+{
+  "id": "actions-for-github",
+  "name": "Actions for GitHub",
+  "version": "1.0.0",
+  "summary": "GitHub Actions on your shelf, before you go looking",
+  "description": "Actions for GitHub watches the repositories you care about and keeps their GitHub Actions runs on Droppy's shelf.\n\nEach repository gets a row: whether its default branch is green, the last dozen runs as a sparkline, how many of them passed, and how long ago. A run in flight rides beside the notch with its elapsed time, and a run that fails — or a branch that goes green again — says so in a HUD and then gets out of the way.\n\nAdd a GitHub token once and it is kept in your keychain, never in Droppy's preferences. Unchanged repositories are read conditionally, so watching five of them every two minutes costs a fraction of the hourly rate limit.",
+  "category": "Developer Tools",
+  "kit": {
+    "abi": 1,
+    "minAPI": "1.5.0"
+  },
+  "minAppVersion": "15.3.0",
+  "capabilities": [
+    "network-client",
+    "hud",
+    "shelf-read",
+    "shelf-write"
+  ],
+  "surfaces": [
+    "shelf-widget",
+    "live-activity",
+    "hud",
+    "settings-pane"
+  ],
+  "icon": "ActionsForGitHub.icon",
+  "creator": {
+    "name": "René",
+    "kind": "community",
+    "url": "https://github.com/diazdesandi",
+    "avatar": "Creator.png"
+  },
+  "source": {
+    "repository": "https://github.com/diazdesandi/actions-for-github",
+    "commit": "",
+    "license": "AGPL-3.0-or-later"
+  },
+  "keywords": [
+    "github",
+    "actions",
+    "ci",
+    "workflow",
+    "build",
+    "pipeline"
+  ]
+}

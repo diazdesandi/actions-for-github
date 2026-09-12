@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "droppykit": {
+      "command": "/Users/rene/Documents/GitHub/OSS/droppykit/Scripts/droppykit",
+      "args": [
+        "mcp",
+        "--package",
+        "/Users/rene/Documents/GitHub/OSS/actions-for-github"
+      ]
+    }
+  }
+}

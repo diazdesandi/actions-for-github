@@ -1,0 +1,168 @@
+{
+  "activation" : {
+    "active" : true,
+    "error" : null
+  },
+  "activity" : [
+    {
+      "at" : "2026-09-12T07:07:08Z",
+      "detail" : "play failure",
+      "refused" : false,
+      "service" : "feedback"
+    },
+    {
+      "at" : "2026-09-12T07:07:08Z",
+      "detail" : "present \"actions-for-github.run\" (card)",
+      "refused" : false,
+      "service" : "hud"
+    }
+  ],
+  "artwork" : {
+    "creatorAvatar" : "ok",
+    "icon" : "ok"
+  },
+  "capabilities" : {
+    "declared" : [
+      "network-client",
+      "hud",
+      "shelf-read",
+      "shelf-write"
+    ],
+    "granted" : [
+      "hud",
+      "network-client",
+      "shelf-read",
+      "shelf-write"
+    ]
+  },
+  "droplet" : {
+    "capabilities" : [
+      "network-client",
+      "hud",
+      "shelf-read",
+      "shelf-write"
+    ],
+    "category" : "Developer Tools",
+    "creator" : "René",
+    "icon" : "ActionsForGitHub.icon",
+    "id" : "actions-for-github",
+    "kit" : {
+      "abi" : 1,
+      "minAPI" : "1.5.0"
+    },
+    "minAppVersion" : "15.3.0",
+    "name" : "Actions for GitHub",
+    "summary" : "GitHub Actions on your shelf, before you go looking",
+    "surfaces" : [
+      "shelf-widget",
+      "live-activity",
+      "hud",
+      "settings-pane"
+    ],
+    "typeID" : "actions-for-github",
+    "version" : "1.0.0"
+  },
+  "expandedSurfaces" : [
+
+  ],
+  "harness" : {
+    "abi" : 1,
+    "apiVersion" : "1.5.0"
+  },
+  "liveActivity" : {
+    "publishing" : true,
+    "seat" : "compact"
+  },
+  "lockScreen" : {
+    "publishing" : false
+  },
+  "log" : [
+    {
+      "at" : "2026-09-12T07:07:07Z",
+      "level" : "info",
+      "message" : "Actions for GitHub activated, watching 2 repositories"
+    },
+    {
+      "at" : "2026-09-12T07:07:07Z",
+      "level" : "debug",
+      "message" : "live activity seat: compact"
+    }
+  ],
+  "manifest" : {
+    "loaded" : true,
+    "path" : "\/Users\/rene\/Documents\/GitHub\/OSS\/actions-for-github\/droplet.json",
+    "problem" : null
+  },
+  "problems" : [
+
+  ],
+  "schema" : "droppykit-harness-report\/1",
+  "shelfWidgets" : [
+    {
+      "contentHeight" : "fixed(94.0)",
+      "id" : "board",
+      "preferredPairedWidth" : 215,
+      "preferredSoloWidth" : 430,
+      "systemImage" : "bolt.fill",
+      "title" : "Actions"
+    }
+  ],
+  "shots" : [
+    "\/Users\/rene\/Documents\/GitHub\/OSS\/actions-for-github\/shots\/overview.png",
+    "\/Users\/rene\/Documents\/GitHub\/OSS\/actions-for-github\/shots\/shelf-widget.png",
+    "\/Users\/rene\/Documents\/GitHub\/OSS\/actions-for-github\/shots\/live-activity.png",
+    "\/Users\/rene\/Documents\/GitHub\/OSS\/actions-for-github\/shots\/hud.png",
+    "\/Users\/rene\/Documents\/GitHub\/OSS\/actions-for-github\/shots\/expanded-surface.png",
+    "\/Users\/rene\/Documents\/GitHub\/OSS\/actions-for-github\/shots\/settings-pane.png",
+    "\/Users\/rene\/Documents\/GitHub\/OSS\/actions-for-github\/shots\/lock-screen.png",
+    "\/Users\/rene\/Documents\/GitHub\/OSS\/actions-for-github\/shots\/menu-bar.png",
+    "\/Users\/rene\/Documents\/GitHub\/OSS\/actions-for-github\/shots\/capabilities.png",
+    "\/Users\/rene\/Documents\/GitHub\/OSS\/actions-for-github\/shots\/preferences.png",
+    "\/Users\/rene\/Documents\/GitHub\/OSS\/actions-for-github\/shots\/activity.png"
+  ],
+  "surfaces" : [
+    {
+      "declared" : true,
+      "implemented" : true,
+      "surface" : "shelf-widget",
+      "verdict" : "provided"
+    },
+    {
+      "declared" : true,
+      "implemented" : true,
+      "surface" : "live-activity",
+      "verdict" : "provided"
+    },
+    {
+      "declared" : false,
+      "implemented" : false,
+      "surface" : "expanded-surface",
+      "verdict" : "not-provided"
+    },
+    {
+      "declared" : true,
+      "implemented" : true,
+      "surface" : "settings-pane",
+      "verdict" : "provided"
+    },
+    {
+      "declared" : true,
+      "implemented" : true,
+      "surface" : "hud",
+      "verdict" : "provided"
+    },
+    {
+      "declared" : false,
+      "implemented" : false,
+      "surface" : "lock-screen-status",
+      "verdict" : "not-provided"
+    },
+    {
+      "declared" : false,
+      "implemented" : false,
+      "surface" : "menu-bar-extra",
+      "verdict" : "not-provided"
+    }
+  ],
+  "verdict" : "ok"
+}
