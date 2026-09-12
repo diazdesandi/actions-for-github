@@ -4,6 +4,7 @@
 //
 //  Copyright (C) 2026 René Jiménez
 //  SPDX-License-Identifier: AGPL-3.0-or-later
+//  Linking exception for DroppyKit: see LICENSE-EXCEPTION
 //
 //  The droplet's page in Droppy's Settings: the token, the watch list, the
 //  cadence, and what gets announced.

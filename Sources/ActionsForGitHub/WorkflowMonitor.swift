@@ -4,6 +4,7 @@
 //
 //  Copyright (C) 2026 René Jiménez
 //  SPDX-License-Identifier: AGPL-3.0-or-later
+//  Linking exception for DroppyKit: see LICENSE-EXCEPTION
 //
 //  The model every surface reads. It owns the watch list, the poll loop, and
 //  the one piece of state that is not just "what GitHub said": which runs
@@ -88,6 +89,14 @@ public final class WorkflowMonitor: ObservableObject {
 
     /// What is known about the token.
     @Published public private(set) var tokenState: TokenState = .missing
+
+    /// Jobs and their steps, keyed by run id.
+    ///
+    /// Fetched narrowly. A run's jobs are a second request, so this covers the
+    /// run in flight and the run that went red, which are the two a surface
+    /// ever names a step for, plus whatever the takeover asks for while it is
+    /// open. The twenty settled runs behind them are never fetched.
+    @Published public private(set) var jobsByRun: [Int: [WorkflowJob]] = [:]
 
     /// A published clock, so elapsed durations tick without a timer per view.
     ///
@@ -249,14 +258,22 @@ public final class WorkflowMonitor: ObservableObject {
         let token = TokenStore.read()
         hasStoredToken = token != nil
 
-        // The harness has no keychain item and no network, so without a sample
-        // every surface renders its empty state and the shots show nothing
-        // worth checking. This never runs inside Droppy, where showing
-        // repositories the user never added would be straightforwardly
-        // wrong.
-        if host.environment.isHarness, token == nil {
+        // Without a sample the harness renders every surface empty and the
+        // shots show nothing worth checking. The gate is an empty watch list
+        // rather than a missing token: a developer who saves a real token to
+        // exercise the network still has no repositories configured, and
+        // gating on the token meant that one save blinded every preview for
+        // good. It never runs inside Droppy, where showing repositories the
+        // user never added would be straightforwardly wrong.
+        //
+        // The live activity needs this more than the other surfaces do. It
+        // only publishes while a run is in flight, so without the sample there
+        // is nothing to look at unless a real workflow happens to be running
+        // at the moment the shots are taken.
+        if host.environment.isHarness, repos.isEmpty {
             isSample = true
             snapshots = SampleData.snapshots()
+            jobsByRun = SampleData.jobs()
             tokenState = .valid(login: "harness")
             startClock()
             announceSample()
@@ -292,13 +309,12 @@ public final class WorkflowMonitor: ObservableObject {
 
     // MARK: Token
 
-    /// Drops the harness sample the moment the user supplies something real.
+    /// Drops the harness sample once there is a real repository to show.
     ///
     /// Without this the sample latches: `repos` keeps answering with the
     /// sample list, so a repository added in the harness is appended to
     /// `SampleData.repos` and written to preferences, and `poll()` returns
-    /// early forever, so a token saved in the harness appears to do nothing
-    /// until the next launch.
+    /// early forever.
     private func leaveSampleMode() {
         guard isSample else { return }
         isSample = false
@@ -319,7 +335,10 @@ public final class WorkflowMonitor: ObservableObject {
         let trimmed = token?.trimmingCharacters(in: .whitespacesAndNewlines)
         let value = (trimmed?.isEmpty ?? true) ? nil : trimmed
 
-        if value != nil {
+        // Only a real watch list ends the sample now. Saving a token while
+        // nothing is watched leaves the sample up, which is what makes the
+        // harness still previewable after you paste one in.
+        if value != nil, !repos.isEmpty {
             leaveSampleMode()
             startPolling()
         }
@@ -481,10 +500,65 @@ public final class WorkflowMonitor: ObservableObject {
             tokenState = .invalid(message: refusal)
         }
 
+        // Jobs before transitions, so the HUD that a failure raises can name
+        // the step that broke. The other order left it announcing a workflow
+        // name it already had, and the steps arrived a moment after the HUD
+        // had been built.
+        await refreshJobs(for: fresh)
         emitTransitions(for: fresh)
         snapshots = fresh
         cacheSnapshots(fresh)
         updateClock()
+    }
+
+    // MARK: Jobs
+
+    /// Which runs are worth a jobs request: the one in flight, because its
+    /// current step changes under the user, and the one that went red, because
+    /// naming the step that broke is the whole point of reading them.
+    private func runsNeedingJobs(in snapshots: [RepoSnapshot]) -> [(RepoRef, WorkflowRun)] {
+        snapshots.flatMap { snapshot -> [(RepoRef, WorkflowRun)] in
+            var wanted: [WorkflowRun] = []
+            if let active = snapshot.activeRun { wanted.append(active) }
+            if let broken = snapshot.failingWorkflows.first { wanted.append(broken) }
+            return wanted.map { (snapshot.ref, $0) }
+        }
+    }
+
+    private func refreshJobs(for snapshots: [RepoSnapshot]) async {
+        guard !isSample else { return }
+        let wanted = runsNeedingJobs(in: snapshots)
+
+        for (ref, run) in wanted {
+            guard !Task.isCancelled else { return }
+            // A settled run's jobs cannot change, so read them once and keep
+            // them. An active run is re-read every poll, and the ETag makes
+            // that free when nothing moved.
+            if !run.state.isActive, jobsByRun[run.id] != nil { continue }
+            if let jobs = try? await client.jobs(forRun: run.id, in: ref) {
+                jobsByRun[run.id] = jobs
+            }
+        }
+
+        // Drop runs nothing points at any more, or a long session accumulates
+        // the jobs of every run that ever passed through.
+        let live = Set(snapshots.flatMap { $0.runs.map(\.id) })
+        jobsByRun = jobsByRun.filter { live.contains($0.key) }
+    }
+
+    /// Reads one run's jobs on demand, for a surface the user just opened.
+    public func loadJobs(for run: WorkflowRun, in ref: RepoRef) {
+        guard !isSample, jobsByRun[run.id] == nil || run.state.isActive else { return }
+        Task { [weak self, client] in
+            guard let jobs = try? await client.jobs(forRun: run.id, in: ref) else { return }
+            self?.jobsByRun[run.id] = jobs
+        }
+    }
+
+    /// The jobs of a run, or an empty array while they are still being read.
+    public func jobs(for run: WorkflowRun?) -> [WorkflowJob] {
+        guard let run else { return [] }
+        return jobsByRun[run.id] ?? []
     }
 
     // MARK: Transitions

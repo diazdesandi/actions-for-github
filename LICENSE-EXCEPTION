@@ -1,0 +1,35 @@
+# Actions for GitHub: DroppyKit linking exception
+
+Copyright (C) 2026 René Jiménez
+
+This is an additional permission under section 7 of the GNU Affero General
+Public License, version 3, granted by the copyright holder of Actions for
+GitHub. It applies to this program and to every covered work derived from it,
+alongside the terms in LICENSE.
+
+  Additional permission under GNU AGPL version 3 section 7
+
+  If you modify this Program, or any covered work, by linking or combining it
+  with DroppyKit (or a modified version of DroppyKit), or with the Droppy
+  application into which DroppyKit loads it, containing parts covered by the
+  terms of the DroppyKit SDK License, the licensors of this Program grant you
+  additional permission to convey the resulting work, in source or in object
+  form, and to omit DroppyKit and Droppy from the Corresponding Source of that
+  combination.
+
+  This permission extends to conveying the resulting work through the Droppy
+  Droplet Store, including in a form signed by the Store's operator.
+
+  Everything in this Program other than DroppyKit and Droppy remains subject to
+  the GNU Affero General Public License, version 3 or later, and its
+  Corresponding Source must still be offered under those terms.
+
+Why this exists: the AGPL asks a distributor to provide Corresponding Source
+for what a conveyed binary links against. DroppyKit ships under the DroppyKit
+SDK License 1.0, which does not permit redistributing the SDK, so a compiled
+.droplet could not otherwise be conveyed without breaching one licence or the
+other. The permission above resolves that in the narrow direction only. The
+copyleft on this program's own source is unchanged.
+
+If you remove this exception, or propagate the work without relying on it, the
+program is governed by LICENSE alone.

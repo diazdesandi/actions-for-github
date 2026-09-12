@@ -3,6 +3,7 @@
 //
 //  Copyright (C) 2026 René Jiménez
 //  SPDX-License-Identifier: AGPL-3.0-or-later
+//  Linking exception for DroppyKit: see LICENSE-EXCEPTION
 //
 //  Run with: droppykit run
 //

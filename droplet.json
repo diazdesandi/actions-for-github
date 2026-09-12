@@ -12,11 +12,13 @@
   "minAppVersion": "15.3.0",
   "capabilities": [
     "network-client",
-    "hud"
+    "hud",
+    "expanded-surface"
   ],
   "surfaces": [
     "shelf-widget",
     "live-activity",
+    "expanded-surface",
     "hud",
     "settings-pane"
   ],

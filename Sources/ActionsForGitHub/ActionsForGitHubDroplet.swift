@@ -4,6 +4,7 @@
 //
 //  Copyright (C) 2026 René Jiménez
 //  SPDX-License-Identifier: AGPL-3.0-or-later
+//  Linking exception for DroppyKit: see LICENSE-EXCEPTION
 //
 //  GitHub Actions on Droppy's surfaces: a board on the shelf, a run in flight
 //  beside the notch, and a HUD when one finishes.
@@ -40,6 +41,9 @@ public final class ActionsForGitHubDroplet: NSObject, ObservableObject, Droplet 
     /// The widget's id, used by the descriptor and by `invalidateLayout`.
     static let boardWidget: ShelfWidgetID = "board"
 
+    /// The takeover that lists one run's steps.
+    static let runDetailSurface: ExpandedSurfaceID = "run-detail"
+
     private var host: DropletHost?
 
     /// The model every surface reads.
@@ -55,6 +59,9 @@ public final class ActionsForGitHubDroplet: NSObject, ObservableObject, Droplet 
     /// owns this: switching it is a re-present with the same id, never a
     /// dismiss and a second present, which the host would read as two HUDs.
     @Published private var isHUDExpanded = false
+
+    /// Which run the detail takeover is showing.
+    @Published private var detail: (ref: RepoRef, run: WorkflowRun)?
 
     /// The row count the last descriptor was built for, so the shelf is only
     /// asked to re-measure when the height actually changed.
@@ -83,6 +90,16 @@ public final class ActionsForGitHubDroplet: NSObject, ObservableObject, Droplet 
         lastDeclaredRowCount = declaredRowCount
         publishActivity()
 
+        // The harness draws the takeover whether or not it has been presented,
+        // so without a run selected its page is a blank rectangle. Seeding it
+        // with the same run a click would choose makes the surface reviewable
+        // in the shots. Only in the harness: in Droppy the takeover belongs to
+        // the user's click, not to activation.
+        if monitor.isSample, let first = monitor.attentionOrdered.first,
+           let run = first.subject ?? first.latest {
+            detail = (first.ref, run)
+        }
+
         host.log.info("Actions for GitHub activated, watching \(monitor.snapshots.count) repositories")
     }
 
@@ -90,6 +107,8 @@ public final class ActionsForGitHubDroplet: NSObject, ObservableObject, Droplet 
         // Everything activate() started is torn down here. Swift cannot unload
         // code, so anything left running keeps running until Droppy relaunches.
         cancellables.removeAll()
+        host?.notchSurface.dismissExpandedSurface(Self.runDetailSurface)
+        detail = nil
         monitor.stop()
         activitySubject.send(nil)
         host?.hud.dismiss(id: HUD.id)
@@ -144,6 +163,32 @@ public final class ActionsForGitHubDroplet: NSObject, ObservableObject, Droplet 
     /// one, the repository otherwise.
     func open(_ snapshot: RepoSnapshot) {
         open(snapshot.latest?.htmlURL ?? snapshot.ref.webURL)
+    }
+
+    /// Takes the shelf over with one run's jobs and steps.
+    ///
+    /// A widget row has space for the name of one step. The user who wants all
+    /// of them gets this, which is the only surface the host offers that is
+    /// large enough to hold a list.
+    func showSteps(for snapshot: RepoSnapshot) {
+        guard let run = snapshot.subject ?? snapshot.latest else { return }
+        detail = (snapshot.ref, run)
+        monitor.loadJobs(for: run, in: snapshot.ref)
+
+        guard let host else { return }
+        let presented = host.notchSurface.presentExpandedSurface(
+            ExpandedSurfacePresentationRequest(surfaceID: Self.runDetailSurface)
+        )
+        if presented == nil {
+            host.log.notice("the host refused the run detail surface")
+            detail = nil
+        }
+    }
+
+    /// Takes the run detail surface back down.
+    func dismissSteps() {
+        host?.notchSurface.dismissExpandedSurface(Self.runDetailSurface)
+        detail = nil
     }
 
     // MARK: Layout
@@ -250,6 +295,7 @@ public final class ActionsForGitHubDroplet: NSObject, ObservableObject, Droplet 
         // strongly for as long as the host keeps the request, weak capture
         // inside it or not.
         let openRun: @MainActor @Sendable () -> Void = { [weak self] in self?.open(openURL) }
+        let jobs = monitor.jobs(for: run)
 
         let request = DropletHUDRequest(
             id: HUD.id,
@@ -262,7 +308,7 @@ public final class ActionsForGitHubDroplet: NSObject, ObservableObject, Droplet 
         ) {
             RunHUDStrip(state: run.state, repoName: ref.name)
         } expanded: {
-            RunHUDCard(ref: ref, run: run, onOpen: openRun)
+            RunHUDCard(ref: ref, run: run, jobs: jobs, onOpen: openRun)
         }
 
         guard host.hud.present(request) else {
@@ -341,7 +387,7 @@ extension ActionsForGitHubDroplet: ShelfWidgetProviding {
                 context: context,
                 onRefresh: { [weak self] in self?.refreshNow() },
                 onSetUp: { [weak self] in self?.openSettings() },
-                onOpen: { [weak self] snapshot in self?.open(snapshot) }
+                onOpen: { [weak self] snapshot in self?.showSteps(for: snapshot) }
             )
         )
     }
@@ -399,6 +445,7 @@ extension ActionsForGitHubDroplet: LiveActivityProviding {
             ActivityCard(
                 ref: first.ref,
                 run: first.run,
+                jobs: monitor.jobs(for: first.run),
                 now: monitor.now,
                 otherRunCount: active.count - 1,
                 onOpen: { [weak self] in
@@ -406,6 +453,72 @@ extension ActionsForGitHubDroplet: LiveActivityProviding {
                 }
             )
         )
+    }
+}
+
+// MARK: - Expanded surface
+
+extension ActionsForGitHubDroplet: ExpandedSurfaceProviding {
+    public var expandedSurfaces: [ExpandedSurfaceDescriptor] {
+        [
+            ExpandedSurfaceDescriptor(
+                id: Self.runDetailSurface,
+                title: "Run steps",
+                systemImage: "list.bullet.indent"
+            )
+        ]
+    }
+
+    public func makeExpandedSurfaceView(
+        _ id: ExpandedSurfaceID,
+        context: ExpandedSurfaceContext
+    ) -> AnyView {
+        // A host can ask about a surface that has since stopped being offered,
+        // so an id this droplet does not recognise returns an empty view rather
+        // than trapping.
+        guard id == Self.runDetailSurface, let detail else { return AnyView(EmptyView()) }
+        return AnyView(
+            RunDetailSurface(
+                monitor: monitor,
+                ref: detail.ref,
+                run: detail.run,
+                context: context,
+                onOpen: { [weak self] in
+                    self?.open(detail.run.htmlURL ?? detail.ref.webURL)
+                },
+                onClose: { [weak self] in self?.dismissSteps() }
+            )
+        )
+    }
+
+    public func expandedSurfaceSize(
+        _ id: ExpandedSurfaceID,
+        fitting proposal: ExpandedSurfaceSizeProposal
+    ) -> CGSize? {
+        guard id == Self.runDetailSurface, let detail else { return nil }
+
+        // Grows with the list and stops at whatever the host allows, so a
+        // fourteen-step job does not scroll inside a surface that had room for
+        // it. Pure and cheap: this runs on layout passes, not once.
+        let steps = monitor.jobs(for: detail.run)
+        let rows = max(steps.stepCount, 1) + (steps.count > 1 ? steps.count : 0)
+        let content = SurfaceLayout.headerHeight
+                    + CGFloat(rows) * SurfaceLayout.rowHeight
+                    + CGFloat(max(0, rows - 1)) * DroppySpacing.xs
+        return CGSize(
+            width: proposal.standardSize.width,
+            height: min(max(content, SurfaceLayout.minimumHeight), proposal.maximumSize.height)
+        )
+    }
+
+    /// The numbers the takeover is measured with.
+    enum SurfaceLayout {
+        /// Title row plus the gap under it.
+        static let headerHeight: CGFloat = 34 + DroppySpacing.sm
+        /// One step row.
+        static let rowHeight: CGFloat = 18
+        /// Enough for the header and a line of status while the jobs load.
+        static let minimumHeight: CGFloat = 96
     }
 }
 

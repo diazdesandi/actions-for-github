@@ -4,6 +4,7 @@
 //
 //  Copyright (C) 2026 René Jiménez
 //  SPDX-License-Identifier: AGPL-3.0-or-later
+//  Linking exception for DroppyKit: see LICENSE-EXCEPTION
 //
 //  The GitHub REST client. An actor, because it owns two caches that outlive
 //  any one request and the droplet that calls it is on the main actor: the
@@ -227,6 +228,19 @@ public actor GitHubClient {
         }
     }
 
+    /// The jobs of one run, each with its steps.
+    ///
+    /// A second request per run, so it is asked for narrowly: the monitor
+    /// fetches it for a run that is in flight and for one that went red, not
+    /// for the twenty settled runs behind them. Conditional like everything
+    /// else, so polling a job that has not advanced answers 304 and costs
+    /// nothing.
+    public func jobs(forRun runID: Int, in ref: RepoRef) async throws -> [WorkflowJob] {
+        let path = "/repos/\(ref.owner)/\(ref.name)/actions/runs/\(runID)/jobs?per_page=100"
+        let data = try await get(path, conditional: true)
+        return try Self.decodeJobs(data)
+    }
+
     // MARK: Transport
 
     private func get(_ path: String, conditional: Bool) async throws -> Data {
@@ -344,6 +358,54 @@ public actor GitHubClient {
     /// timestamps are ISO 8601 with a `Z` that the default date strategy does
     /// not read. A `CodingKeys` enum plus three custom decoders is longer than
     /// this and no clearer.
+    /// Decodes the `jobs` array and the `steps` inside each one.
+    static func decodeJobs(_ data: Data) throws -> [WorkflowJob] {
+        guard
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let rawJobs = object["jobs"] as? [[String: Any]]
+        else {
+            throw GitHubError.decoding("no jobs array")
+        }
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        func date(_ value: Any?) -> Date? {
+            guard let string = value as? String else { return nil }
+            return formatter.date(from: string)
+        }
+
+        return rawJobs.compactMap { raw -> WorkflowJob? in
+            guard let id = raw["id"] as? Int else { return nil }
+            let steps = (raw["steps"] as? [[String: Any]] ?? []).compactMap { rawStep -> WorkflowStep? in
+                guard let number = rawStep["number"] as? Int else { return nil }
+                return WorkflowStep(
+                    number: number,
+                    name: (rawStep["name"] as? String) ?? "Step \(number)",
+                    state: RunState(
+                        status: rawStep["status"] as? String,
+                        conclusion: rawStep["conclusion"] as? String
+                    ),
+                    startedAt: date(rawStep["started_at"]),
+                    completedAt: date(rawStep["completed_at"])
+                )
+            }
+            .sorted { $0.number < $1.number }
+
+            return WorkflowJob(
+                id: id,
+                name: (raw["name"] as? String) ?? "Job",
+                state: RunState(
+                    status: raw["status"] as? String,
+                    conclusion: raw["conclusion"] as? String
+                ),
+                startedAt: date(raw["started_at"]),
+                completedAt: date(raw["completed_at"]),
+                steps: steps,
+                htmlURL: (raw["html_url"] as? String).flatMap(URL.init(string:))
+            )
+        }
+    }
+
     static func decodeRuns(_ data: Data) throws -> [WorkflowRun] {
         guard
             let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],

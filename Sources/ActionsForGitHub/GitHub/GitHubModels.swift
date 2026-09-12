@@ -4,6 +4,7 @@
 //
 //  Copyright (C) 2026 René Jiménez
 //  SPDX-License-Identifier: AGPL-3.0-or-later
+//  Linking exception for DroppyKit: see LICENSE-EXCEPTION
 //
 //  The slice of the GitHub Actions API this droplet reads, and the derived
 //  health a repository's recent runs add up to.
@@ -226,6 +227,119 @@ public struct WorkflowRun: Codable, Hashable, Identifiable, Sendable {
         let end = state.isActive ? now : updatedAt
         return max(0, end.timeIntervalSince(start))
     }
+}
+
+// MARK: - Steps and jobs
+
+/// One step inside a job.
+///
+/// GitHub reports a step with the same `status`/`conclusion` pair it reports a
+/// run with, so ``RunState`` collapses both and every surface draws a step with
+/// the glyph it already draws a run with.
+public struct WorkflowStep: Codable, Hashable, Identifiable, Sendable {
+    /// GitHub's ordinal. Not contiguous: post-run cleanup steps carry numbers
+    /// well past the visible ones, which is why this is the identity rather
+    /// than an index into the array.
+    public let number: Int
+    /// The step's name as written in the workflow file.
+    public let name: String
+    /// Collapsed status.
+    public let state: RunState
+    /// When the step started, absent while it is still queued.
+    public let startedAt: Date?
+    /// When it finished.
+    public let completedAt: Date?
+
+    public var id: Int { number }
+
+    public init(number: Int, name: String, state: RunState, startedAt: Date?, completedAt: Date?) {
+        self.number = number
+        self.name = name
+        self.state = state
+        self.startedAt = startedAt
+        self.completedAt = completedAt
+    }
+
+    /// How long the step took, or has taken so far. `nil` before it starts.
+    public func duration(now: Date = Date()) -> TimeInterval? {
+        guard let startedAt else { return nil }
+        let end = state.isActive ? now : (completedAt ?? now)
+        return max(0, end.timeIntervalSince(startedAt))
+    }
+}
+
+/// One job of a run, with its steps.
+public struct WorkflowJob: Codable, Hashable, Identifiable, Sendable {
+    /// GitHub's job id.
+    public let id: Int
+    /// The job's name, which is the matrix leg's name when there is a matrix.
+    public let name: String
+    /// Collapsed status.
+    public let state: RunState
+    /// When the job started.
+    public let startedAt: Date?
+    /// When it finished.
+    public let completedAt: Date?
+    /// Steps in the order GitHub returned them.
+    public let steps: [WorkflowStep]
+    /// The job's page on github.com.
+    public let htmlURL: URL?
+
+    public init(
+        id: Int,
+        name: String,
+        state: RunState,
+        startedAt: Date?,
+        completedAt: Date?,
+        steps: [WorkflowStep],
+        htmlURL: URL?
+    ) {
+        self.id = id
+        self.name = name
+        self.state = state
+        self.startedAt = startedAt
+        self.completedAt = completedAt
+        self.steps = steps
+        self.htmlURL = htmlURL
+    }
+
+    /// The step running right now, if any.
+    public var currentStep: WorkflowStep? { steps.first { $0.state.isActive } }
+
+    /// The first step that failed, which is the one worth naming when the job
+    /// went red. Later steps usually failed because this one did.
+    public var failedStep: WorkflowStep? { steps.first { $0.state.isBad } }
+
+    /// The step a surface should name: what broke, else what is running, else
+    /// the last one to finish.
+    public var subjectStep: WorkflowStep? {
+        failedStep ?? currentStep ?? steps.last { !$0.state.isActive }
+    }
+
+    /// How far along the job is, as finished steps over total.
+    public var progress: (done: Int, total: Int) {
+        (steps.filter { !$0.state.isActive }.count, steps.count)
+    }
+
+    public func duration(now: Date = Date()) -> TimeInterval? {
+        guard let startedAt else { return nil }
+        let end = state.isActive ? now : (completedAt ?? now)
+        return max(0, end.timeIntervalSince(startedAt))
+    }
+}
+
+public extension Array where Element == WorkflowJob {
+    /// The job a surface should speak for when it has room for only one:
+    /// whichever is broken, else whichever is running, else the first.
+    var subject: WorkflowJob? {
+        first { $0.state.isBad } ?? first { $0.state.isActive } ?? first
+    }
+
+    /// The step to name across the whole run.
+    var subjectStep: WorkflowStep? { subject?.subjectStep }
+
+    /// Steps across every job, for a surface listing all of them.
+    var stepCount: Int { reduce(0) { $0 + $1.steps.count } }
 }
 
 // MARK: - Snapshot

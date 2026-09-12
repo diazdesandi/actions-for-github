@@ -4,6 +4,7 @@
 //
 //  Copyright (C) 2026 René Jiménez
 //  SPDX-License-Identifier: AGPL-3.0-or-later
+//  Linking exception for DroppyKit: see LICENSE-EXCEPTION
 //
 //  The vocabulary every surface shares: the colour a state reads as, how long
 //  a run took, and how long ago it was. Written once so the shelf, the notch

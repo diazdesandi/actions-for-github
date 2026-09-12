@@ -90,15 +90,21 @@ with this program. If not, see <https://www.gnu.org/licenses/>.
 
 The full text is in [LICENSE](LICENSE).
 
+### Linking exception
+
+A compiled `.droplet` links DroppyKit, which ships under the proprietary
+DroppyKit SDK License 1.0 and cannot be redistributed. The AGPL asks a
+distributor for Corresponding Source covering what the binary links, so without
+a further grant the built bundle could not be conveyed at all.
+
+[LICENSE-EXCEPTION](LICENSE-EXCEPTION) is that grant: an additional permission
+under AGPL section 7 allowing this program to be linked with DroppyKit and
+Droppy, conveyed in binary form including through the Droplet Store, with those
+two omitted from the Corresponding Source. Everything else here stays under the
+AGPL, and the source you are reading is offered under it in full.
+
 Section 13, the network clause that separates the AGPL from the GPL, has
 nothing to bite on here: this droplet runs on one Mac and talks to GitHub's API
 as a client, so nobody interacts with it remotely over a network. It matters if
 someone later builds a hosted service out of this code, which is the case the
 AGPL exists for.
-
-DroppyKit, which this droplet links against, is not free software: it ships
-under the DroppyKit SDK License 1.0. That license's section 3 says droplets are
-the author's own, so licensing this code under the AGPL is fine. Distributing a
-**compiled** `.droplet` is the part that needs care, because the AGPL asks you
-to supply Corresponding Source for what the binary links and the SDK cannot be
-redistributed. A section 7 linking exception is the usual remedy.

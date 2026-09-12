@@ -4,6 +4,7 @@
 //
 //  Copyright (C) 2026 René Jiménez
 //  SPDX-License-Identifier: AGPL-3.0-or-later
+//  Linking exception for DroppyKit: see LICENSE-EXCEPTION
 //
 //  The shelf widget, in both layouts.
 //
@@ -129,7 +130,12 @@ private struct SoloBody: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DroppySpacing.xsm) {
             ForEach(shown) { snapshot in
-                RepoRow(snapshot: snapshot, now: monitor.now, onOpen: onOpen)
+                RepoRow(
+                    snapshot: snapshot,
+                    jobs: monitor.jobs(for: snapshot.subject),
+                    now: monitor.now,
+                    onOpen: onOpen
+                )
             }
             if hidden > 0 {
                 Text("\(hidden) more")
@@ -143,6 +149,7 @@ private struct SoloBody: View {
 /// One repository's line.
 private struct RepoRow: View {
     let snapshot: RepoSnapshot
+    let jobs: [WorkflowJob]
     let now: Date
     let onOpen: (RepoSnapshot) -> Void
 
@@ -172,15 +179,17 @@ private struct RepoRow: View {
                 // time. Named only when it is not simply passing: a green row
                 // does not need to say which of four green workflows it means.
                 if let subject = snapshot.subject, subject.state != .success {
-                    Text(subject.workflowName)
-                        .font(.system(size: 11))
-                        .foregroundStyle(
-                            subject.state.isBad
-                                ? RunPalette.fail
-                                : AdaptiveColors.notchSurfaceTertiaryText
-                        )
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                    // The workflow when that is all this row knows, the step
+                    // once the jobs have been read: "Issue Triage" says where
+                    // to look, "Run triage" says what to look at.
+                    StepLine(
+                        jobs: jobs,
+                        fallback: subject.workflowName,
+                        showsProgress: subject.state.isActive
+                    )
+                    .foregroundStyle(
+                        subject.state.isBad ? RunPalette.fail : AdaptiveColors.notchSurfaceTertiaryText
+                    )
                 }
 
                 Spacer(minLength: DroppySpacing.sm)

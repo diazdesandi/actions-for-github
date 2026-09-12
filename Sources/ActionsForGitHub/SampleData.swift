@@ -4,6 +4,7 @@
 //
 //  Copyright (C) 2026 René Jiménez
 //  SPDX-License-Identifier: AGPL-3.0-or-later
+//  Linking exception for DroppyKit: see LICENSE-EXCEPTION
 //
 //  What the harness shows when there is no token.
 //
@@ -83,6 +84,69 @@ enum SampleData {
             )
         }
         return RepoSnapshot(ref: droppy, branch: "main", runs: runs, fetchedAt: now)
+    }
+
+    // MARK: Jobs
+
+    /// Jobs and steps for the sample runs, keyed by run id.
+    ///
+    /// The step names are the real ones from Thaw's Build DMG and Issue Triage
+    /// workflows, so the takeover is laid out against names of the length that
+    /// actually occur rather than against "Step 1".
+    static func jobs(now: Date = Date()) -> [Int: [WorkflowJob]] {
+        [
+            1_179: [buildDMGRunning(now: now)],
+            1_176: [issueTriageFailed(now: now)]
+        ]
+    }
+
+    /// The run in flight: six steps done, "Build" running, the rest queued.
+    private static func buildDMGRunning(now: Date) -> WorkflowJob {
+        let started = now.addingTimeInterval(-2 * 60)
+        var steps: [WorkflowStep] = []
+        var cursor = started
+        let done: [(String, TimeInterval)] = [
+            ("Set up job", 2), ("Checkout build actions", 2), ("Checkout source", 5),
+            ("Select Xcode", 2), ("Configure signing", 2)
+        ]
+        for (index, entry) in done.enumerated() {
+            steps.append(WorkflowStep(number: index + 1, name: entry.0, state: .success,
+                                      startedAt: cursor, completedAt: cursor.addingTimeInterval(entry.1)))
+            cursor = cursor.addingTimeInterval(entry.1)
+        }
+        steps.append(WorkflowStep(number: 6, name: "Build", state: .running,
+                                  startedAt: cursor, completedAt: nil))
+        for (index, name) in ["Export Archive", "Notarize", "Upload DMG", "Cleanup keychain",
+                              "Complete job"].enumerated() {
+            steps.append(WorkflowStep(number: 7 + index, name: name, state: .queued,
+                                      startedAt: nil, completedAt: nil))
+        }
+        return WorkflowJob(id: 9_001, name: "build-dmg", state: .running,
+                           startedAt: started, completedAt: nil, steps: steps,
+                           htmlURL: URL(string: "https://github.com/thaw-app/Thaw/actions"))
+    }
+
+    /// The run that went red, so a surface has a failing step to name.
+    private static func issueTriageFailed(now: Date) -> WorkflowJob {
+        let started = now.addingTimeInterval(-66 * 60)
+        var steps: [WorkflowStep] = []
+        var cursor = started
+        for (index, entry) in [("Set up job", 3.0), ("Checkout source", 6.0),
+                               ("Install dependencies", 41.0)].enumerated() {
+            steps.append(WorkflowStep(number: index + 1, name: entry.0, state: .success,
+                                      startedAt: cursor, completedAt: cursor.addingTimeInterval(entry.1)))
+            cursor = cursor.addingTimeInterval(entry.1)
+        }
+        steps.append(WorkflowStep(number: 4, name: "Run triage", state: .failure,
+                                  startedAt: cursor, completedAt: cursor.addingTimeInterval(138)))
+        cursor = cursor.addingTimeInterval(138)
+        steps.append(WorkflowStep(number: 5, name: "Post Checkout source", state: .success,
+                                  startedAt: cursor, completedAt: cursor.addingTimeInterval(1)))
+        steps.append(WorkflowStep(number: 6, name: "Complete job", state: .skipped,
+                                  startedAt: nil, completedAt: nil))
+        return WorkflowJob(id: 9_002, name: "triage", state: .failure,
+                           startedAt: started, completedAt: cursor, steps: steps,
+                           htmlURL: URL(string: "https://github.com/thaw-app/Thaw/actions"))
     }
 
     // MARK: Builder

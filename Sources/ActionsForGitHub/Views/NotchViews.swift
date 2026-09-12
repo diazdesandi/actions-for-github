@@ -4,6 +4,7 @@
 //
 //  Copyright (C) 2026 René Jiménez
 //  SPDX-License-Identifier: AGPL-3.0-or-later
+//  Linking exception for DroppyKit: see LICENSE-EXCEPTION
 //
 //  The two notch surfaces: the live activity that rides beside the camera
 //  while a run is going, and the HUD that reports one finishing.
@@ -51,6 +52,7 @@ struct ActivityTrailing: View {
 struct ActivityCard: View {
     let ref: RepoRef
     let run: WorkflowRun
+    let jobs: [WorkflowJob]
     let now: Date
     /// How many other runs are going at the same time, so the card can say so
     /// rather than pretending this is the only one.
@@ -70,11 +72,9 @@ struct ActivityCard: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
 
-                Text(subtitle)
-                    .font(.system(size: 11))
-                    .foregroundStyle(AdaptiveColors.notchSurfaceTertiaryText)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                // The workflow's name is on the row above in everything but
+                // name; what the user does not know is which step it is on.
+                StepLine(jobs: jobs, fallback: subtitle)
             }
 
             Spacer(minLength: DroppySpacing.sm)
@@ -97,6 +97,7 @@ struct ActivityCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Shown until the jobs arrive, and for a run whose steps cannot be read.
     private var subtitle: String {
         var text = "\(run.workflowName) · \(run.branch)"
         if otherRunCount > 0 {
@@ -137,6 +138,7 @@ struct RunHUDStrip: View {
 struct RunHUDCard: View {
     let ref: RepoRef
     let run: WorkflowRun
+    let jobs: [WorkflowJob]
     /// Spelled out rather than left to inference: the host holds this card's
     /// builder, so the action has to be safe to send and to run on the main
     /// actor when the host rebuilds it.
@@ -155,11 +157,14 @@ struct RunHUDCard: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
 
-                Text("\(run.workflowName) · \(run.branch) · \(RunFormat.duration(run.duration()))")
-                    .font(.system(size: 11))
-                    .foregroundStyle(AdaptiveColors.notchSurfaceTertiaryText)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                // Naming the step that broke is the difference between a HUD
+                // the user acts on and one they have to go look something up
+                // after.
+                StepLine(
+                    jobs: jobs,
+                    fallback: "\(run.workflowName) · \(run.branch) · \(RunFormat.duration(run.duration()))",
+                    showsProgress: false
+                )
             }
 
             Spacer(minLength: DroppySpacing.sm)
