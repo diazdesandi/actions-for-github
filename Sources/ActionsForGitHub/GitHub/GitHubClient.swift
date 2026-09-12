@@ -230,6 +230,14 @@ public actor GitHubClient {
     // MARK: Transport
 
     private func get(_ path: String, conditional: Bool) async throws -> Data {
+        try await get(path, conditional: conditional, retriedUnconditionally: false)
+    }
+
+    private func get(
+        _ path: String,
+        conditional: Bool,
+        retriedUnconditionally: Bool
+    ) async throws -> Data {
         guard let token else { throw GitHubError.noToken }
 
         if let limit = rateLimit, limit.isNearlySpent, limit.resetsAt > Date() {
@@ -245,7 +253,7 @@ public actor GitHubClient {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
-        request.setValue("ActionsLens-Droplet", forHTTPHeaderField: "User-Agent")
+        request.setValue("ActionsForGitHub-Droplet", forHTTPHeaderField: "User-Agent")
         // URLSession's own cache would answer from disk without telling us the
         // ETag story, and the droplet needs to know whether anything changed.
         request.cachePolicy = .reloadIgnoringLocalCacheData
@@ -280,8 +288,14 @@ public actor GitHubClient {
             // quota. Hand back the body the ETag belongs to.
             if let cached = bodies[path] { return cached }
             // The body was dropped without the ETag; ask again unconditionally.
+            // Once. A 304 to a request that carried no `If-None-Match` is a
+            // server fault, and retrying it forever is a hang rather than an
+            // error anybody can read.
+            guard !retriedUnconditionally else {
+                throw GitHubError.decoding("304 with no cached body for \(path)")
+            }
             etags[path] = nil
-            return try await get(path, conditional: false)
+            return try await get(path, conditional: false, retriedUnconditionally: true)
 
         case 401:
             throw GitHubError.unauthorized

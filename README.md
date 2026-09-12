@@ -14,7 +14,7 @@ runs of the repositories you watch on Droppy's shelf, in the spirit of
   then the pipelines behind it.
 - **Live activity.** A run in flight rides beside the notch with its elapsed
   time; the card names the repository, the workflow and the branch.
-- **HUD.** A run that fails — or a branch that goes green again — says so once
+- **HUD.** A run that fails, or a branch that goes green again, says so once
   and gets out of the way.
 - **Settings pane.** The token, the watch list, the cadence, and what gets
   announced.
@@ -38,12 +38,12 @@ runs of the repositories you watch on Droppy's shelf, in the spirit of
 
 ## Status
 
-The package builds, validates and renders every surface it declares. Two things
-are still placeholders for whoever ships it: the icon and creator avatar, and
-`source` in `droplet.json`, which needs a real repository and commit.
+The package builds, validates and renders every surface it declares against
+DroppyKit 1.6.
 
-The SDK dependency currently points at the sibling `../droppykit` checkout.
-Swap it for the tagged URL in `Package.swift` before publishing.
+One thing is still a placeholder: `Assets/Creator.png` is the blue disc
+`droppykit new` writes, and it is what the Droplet Store shows beside the
+author's name.
 
 ## Developing
 

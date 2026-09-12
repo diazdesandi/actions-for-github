@@ -90,8 +90,11 @@ public final class WorkflowMonitor: ObservableObject {
     @Published public private(set) var tokenState: TokenState = .missing
 
     /// A published clock, so elapsed durations tick without a timer per view.
-    /// It only advances while a run is going; a shelf full of settled runs
-    /// redraws never.
+    ///
+    /// It ticks every second only while a run is in flight, which is the only
+    /// time a surface counts in seconds. A settled list advances it once per
+    /// poll instead, which is all the "3m ago" column needs and costs the
+    /// shelf no redraws in between.
     @Published public private(set) var now = Date()
 
     // MARK: Preferences
@@ -244,6 +247,7 @@ public final class WorkflowMonitor: ObservableObject {
         self.host = host
 
         let token = TokenStore.read()
+        hasStoredToken = token != nil
 
         // The harness has no keychain item and no network, so without a sample
         // every surface renders its empty state and the shots show nothing
@@ -263,9 +267,13 @@ public final class WorkflowMonitor: ObservableObject {
         reconcileSnapshots(with: repos)
 
         tokenState = token == nil ? .missing : .unverified
-        Task { [client] in await client.setToken(token) }
-
-        startPolling()
+        // One task, in order. Two meant the first poll could reach the client
+        // before the token did, and every repository came back "Add a GitHub
+        // token to start watching repositories" until the next poll.
+        Task { [weak self, client] in
+            await client.setToken(token)
+            self?.startPolling()
+        }
     }
 
     /// Whether the snapshots on screen are the harness sample rather than
@@ -316,6 +324,7 @@ public final class WorkflowMonitor: ObservableObject {
             startPolling()
         }
         TokenStore.write(value)
+        hasStoredToken = TokenStore.exists()
         await client.setToken(value)
 
         guard value != nil else {
@@ -350,8 +359,14 @@ public final class WorkflowMonitor: ObservableObject {
         return tokenState
     }
 
-    /// Whether a token is stored, for the settings pane's field placeholder.
-    public var hasStoredToken: Bool { TokenStore.exists() }
+    /// Whether a token is stored, for the settings pane's field placeholder
+    /// and the widget's empty state.
+    ///
+    /// Published rather than computed. Both readers are view bodies, and
+    /// `TokenStore.exists()` is a synchronous keychain query: asking it from a
+    /// body meant one `SecItemCopyMatching` per render pass of a widget that
+    /// redraws on hover.
+    @Published public private(set) var hasStoredToken = false
 
     // MARK: Watch list
 
@@ -530,7 +545,16 @@ public final class WorkflowMonitor: ObservableObject {
     // MARK: Clock
 
     /// Runs a one-second clock only while something is in flight.
-    private func updateClock() { startClock() }
+    private func updateClock() {
+        // Restamp before deciding whether a clock is needed. `now` is what the
+        // age column subtracts from, and while nothing is in flight there is
+        // no clock task to advance it: without this the column froze at the
+        // instant the monitor was built and a run that finished three minutes
+        // ago still read "3m" an hour later. A poll is fine-grained enough for
+        // a column that prints whole minutes.
+        now = Date()
+        startClock()
+    }
 
     private func startClock() {
         let needsClock = !activeRuns.isEmpty

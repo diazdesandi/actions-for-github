@@ -132,7 +132,7 @@ public final class ActionsForGitHubDroplet: NSObject, ObservableObject, Droplet 
     }
 
     /// Opens a URL through the host rather than through `NSWorkspace`: the
-    /// host is what holds the `network-client` grant and what logs the refusal.
+    /// host decides which schemes a droplet may open, and logs the refusal.
     func open(_ url: URL?) {
         guard let url else { return }
         if host?.workspace.open(url) != true {
@@ -177,10 +177,21 @@ public final class ActionsForGitHubDroplet: NSObject, ObservableObject, Droplet 
     enum SoloLayout {
         /// Rows before the overflow count takes the last slot.
         static let visibleRows = 6
-        /// One repository line.
-        static let rowHeight: CGFloat = 18
-        /// Padding on both edges, the header row, and the gap below it.
-        static let chromeHeight: CGFloat = DroppySpacing.mdl * 2 + 16 + DroppySpacing.sm
+        /// One repository line: 12pt text beside a 10pt sparkline.
+        static let rowHeight: CGFloat = 15
+        /// The header row, the gap below it, and the one inset the widget
+        /// itself pads.
+        ///
+        /// That inset is ``ShelfWidgetContext/contentInsets``, which is zero
+        /// under a notch and 12 on each edge of the Dynamic Island. A
+        /// descriptor is built before there is a context to ask, and there is
+        /// one height for both shapes, so it carries the island's pair: the
+        /// island fits its content exactly and the notch ends 24 short of the
+        /// rectangle, which is the right way round. The other way clips the
+        /// island's last row.
+        static let chromeHeight: CGFloat = islandInsets + 16 + DroppySpacing.sm
+        /// Both of the island's content insets, top and bottom.
+        static let islandInsets: CGFloat = DroppySpacing.md * 2
         /// The empty state: two lines of copy and a button.
         static let emptyHeight: CGFloat = 104
     }
